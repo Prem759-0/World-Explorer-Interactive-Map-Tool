@@ -3,66 +3,80 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>World Explorer — 3D Globe (Next Level)</title>
+  <title>World Explorer — Next Level 3D Globe</title>
   <style>
     :root {
       --bg: #020617;
-      --surface: rgba(15, 23, 42, 0.8);
-      --glass-border: rgba(255, 255, 255, 0.06);
+      --surface: rgba(15,23,42,0.8);
       --accent: #22d3ee;
-      --accent-glow: rgba(34, 211, 238, 0.5);
       --text: #e2e8f0;
-      --text-muted: #94a3b8;
-      --radius-lg: 20px;
-      --radius-md: 14px;
+      --muted: #94a3b8;
+      --radius: 20px;
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    * { margin:0; padding:0; box-sizing:border-box; }
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg);
-      overflow: hidden;
-      height: 100vh;
-      width: 100vw;
       color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* Scroll container for storytelling */
+    #scroll-container {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none; /* let clicks pass to canvas */
+    }
+    #scroll-content {
+      height: 400vh; /* enough for story steps */
+      width: 100%;
     }
 
     #globe-container {
       position: fixed;
       inset: 0;
+      z-index: 5;
       cursor: grab;
     }
     #globe-container:active { cursor: grabbing; }
-    #globe-container.loading { cursor: progress; }
 
-    /* ─── TOP BAR ──────────────── */
-    #top-bar {
+    /* Overlay UI */
+    #ui-overlay {
       position: fixed;
+      z-index: 100;
+      pointer-events: none;
+      inset: 0;
+    }
+
+    #top-bar {
+      position: absolute;
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 100;
+      pointer-events: auto;
       display: flex;
       align-items: center;
       gap: 12px;
       background: var(--surface);
       backdrop-filter: blur(24px);
-      border: 1px solid var(--glass-border);
+      border: 1px solid rgba(255,255,255,0.08);
       border-radius: 50px;
       padding: 8px 10px 8px 22px;
       box-shadow: 0 12px 40px rgba(0,0,0,0.5);
     }
-    #top-bar .dot {
+    .dot {
       width: 10px; height: 10px; border-radius: 50%;
       background: var(--accent);
-      box-shadow: 0 0 16px var(--accent-glow);
+      box-shadow: 0 0 16px rgba(34,211,238,0.5);
     }
     #search-input {
       background: transparent; border: none; outline: none;
       color: var(--text); font-size: 15px; width: 200px;
     }
-    #search-input::placeholder { color: var(--text-muted); }
+    #search-input::placeholder { color: var(--muted); }
     #search-clear {
-      background: rgba(255,255,255,0.06); border: none; color: var(--text-muted);
+      background: rgba(255,255,255,0.06); border: none; color: var(--muted);
       width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
       display: none; align-items: center; justify-content: center; font-size: 14px;
     }
@@ -70,25 +84,26 @@
     #suggestions {
       position: absolute; top: calc(100% + 8px); left: 0; right: 0;
       background: var(--surface); backdrop-filter: blur(24px);
-      border: 1px solid var(--glass-border); border-radius: var(--radius-md);
-      overflow: hidden; display: none; flex-direction: column;
-      max-height: 240px; overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+      display: none; flex-direction: column; max-height: 240px; overflow-y: auto;
     }
     #suggestions.active { display: flex; }
     .suggestion-item {
-      padding: 10px 18px; cursor: pointer; color: var(--text-muted);
-      transition: background 0.2s; border-bottom: 1px solid rgba(255,255,255,0.03);
+      padding: 10px 18px; cursor: pointer; color: var(--muted);
+      transition: 0.2s; border-bottom: 1px solid rgba(255,255,255,0.03);
     }
     .suggestion-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
 
-    /* ─── DATA PANEL ──────────── */
     #data-panel {
-      position: fixed; right: -440px; top: 50%; transform: translateY(-50%);
-      z-index: 150; width: 380px; max-width: 90vw;
+      position: absolute;
+      right: -440px; top: 50%; transform: translateY(-50%);
+      width: 380px; max-width: 90vw;
       background: var(--surface); backdrop-filter: blur(28px);
-      border: 1px solid var(--glass-border); border-radius: var(--radius-lg);
-      padding: 28px 26px 24px; transition: right 0.55s cubic-bezier(0.25,0.46,0.45,0.94);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius);
+      padding: 28px 26px 24px;
+      transition: right 0.55s cubic-bezier(0.25,0.46,0.45,0.94);
       box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+      pointer-events: auto;
     }
     #data-panel.open { right: 28px; }
     #panel-close {
@@ -104,29 +119,27 @@
       -webkit-text-fill-color: transparent;
     }
     .panel-stat { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .panel-stat-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; }
+    .panel-stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; }
     .panel-stat-value { font-weight: 600; }
-    #panel-loader { text-align: center; color: var(--text-muted); font-size: 13px; }
 
-    /* ─── CONTROLS ────────────── */
     #controls {
-      position: fixed; bottom: 28px; right: 28px; z-index: 120;
+      position: absolute;
+      bottom: 28px; right: 28px;
       display: flex; flex-direction: column; gap: 8px;
+      pointer-events: auto;
     }
     .ctrl-btn {
       width: 42px; height: 42px; border-radius: 50%;
       background: var(--surface); backdrop-filter: blur(16px);
-      border: 1px solid var(--glass-border); color: #fff; cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.08); color: #fff; cursor: pointer;
       font-size: 18px; display: flex; align-items: center; justify-content: center;
-      transition: all 0.2s; box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      transition: 0.2s; box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     }
-    .ctrl-btn:hover { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
+    .ctrl-btn:hover { border-color: var(--accent); box-shadow: 0 0 20px var(--accent); }
     .ctrl-btn.active { border-color: #8b5cf6; background: rgba(139,92,246,0.2); }
 
     @media (max-width: 768px) {
-      #top-bar { padding: 6px 8px 6px 16px; gap: 8px; }
-      #search-input { width: 120px; font-size: 13px; }
-      #data-panel { width: calc(100vw - 20px); right: -110vw; bottom: 16px; top: auto; transform: none; border-radius: var(--radius-lg) var(--radius-lg) 8px 8px; }
+      #data-panel { width: calc(100vw - 20px); right: -110vw; bottom: 16px; top: auto; transform: none; }
       #data-panel.open { right: 10px; }
     }
   </style>
@@ -134,34 +147,37 @@
 <body>
   <div id="globe-container"></div>
 
-  <!-- Top Bar -->
-  <div id="top-bar">
-    <div class="dot"></div>
-    <input type="text" id="search-input" placeholder="Search country..." autocomplete="off">
-    <button id="search-clear" aria-label="Clear">✕</button>
-    <div id="suggestions"></div>
+  <!-- Scroll story layer (invisible) -->
+  <div id="scroll-container">
+    <div id="scroll-content"></div>
   </div>
 
-  <!-- Data Panel -->
-  <div id="data-panel">
-    <button id="panel-close">✕</button>
-    <div id="panel-flag">🌍</div>
-    <div id="panel-name">Select a Country</div>
-    <div class="panel-stat"><span class="panel-stat-label">Population</span><span class="panel-stat-value" id="stat-pop">—</span></div>
-    <div class="panel-stat"><span class="panel-stat-label">Capital</span><span class="panel-stat-value" id="stat-capital">—</span></div>
-    <div class="panel-stat"><span class="panel-stat-label">Region</span><span class="panel-stat-value" id="stat-region">—</span></div>
-    <div class="panel-stat"><span class="panel-stat-label">Area</span><span class="panel-stat-value" id="stat-area">—</span></div>
-    <div id="panel-loader" style="display:none;">Fetching fresh data…</div>
+  <!-- UI -->
+  <div id="ui-overlay">
+    <div id="top-bar">
+      <div class="dot"></div>
+      <input type="text" id="search-input" placeholder="Search country..." autocomplete="off">
+      <button id="search-clear">✕</button>
+      <div id="suggestions"></div>
+    </div>
+    <div id="data-panel">
+      <button id="panel-close">✕</button>
+      <div id="panel-flag">🌍</div>
+      <div id="panel-name">Select a Country</div>
+      <div class="panel-stat"><span class="panel-stat-label">Population</span><span class="panel-stat-value" id="stat-pop">—</span></div>
+      <div class="panel-stat"><span class="panel-stat-label">Capital</span><span class="panel-stat-value" id="stat-capital">—</span></div>
+      <div class="panel-stat"><span class="panel-stat-label">Region</span><span class="panel-stat-value" id="stat-region">—</span></div>
+      <div class="panel-stat"><span class="panel-stat-label">Area</span><span class="panel-stat-value" id="stat-area">—</span></div>
+    </div>
+    <div id="controls">
+      <button class="ctrl-btn active" id="btn-auto-rotate" title="Auto-rotate">⟳</button>
+      <button class="ctrl-btn" id="btn-heatmap" title="Heatmap">🔥</button>
+      <button class="ctrl-btn" id="btn-reset" title="Reset">⌂</button>
+    </div>
   </div>
 
-  <!-- Controls -->
-  <div id="controls">
-    <button class="ctrl-btn" id="btn-auto-rotate" title="Auto-rotate">⟳</button>
-    <button class="ctrl-btn" id="btn-heatmap" title="Heatmap">🔥</button>
-    <button class="ctrl-btn" id="btn-reset" title="Reset view">⌂</button>
-  </div>
-
-  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script type="importmap">
     {
       "imports": {
@@ -177,75 +193,99 @@
     import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
     // ────────────────────────────────────────
-    // COUNTRY ID MAP (generated on canvas)
-    // Each country gets a unique RGB color (r,g,b) -> id = r*65536 + g*256 + b
+    // GLOBAL STATE & API DATA
     // ────────────────────────────────────────
-    const countries = [
-      { name: 'United States', iso: 'US', lat: 38, lon: -97, bbox: [-125, 25, -66, 49] },
-      { name: 'Canada', iso: 'CA', lat: 60, lon: -95, bbox: [-141, 42, -52, 83] },
-      { name: 'Mexico', iso: 'MX', lat: 23, lon: -102, bbox: [-118, 14, -86, 33] },
-      { name: 'Brazil', iso: 'BR', lat: -10, lon: -55, bbox: [-74, -34, -34, 5] },
-      { name: 'Argentina', iso: 'AR', lat: -34, lon: -64, bbox: [-73, -55, -53, -22] },
-      { name: 'United Kingdom', iso: 'GB', lat: 54, lon: -2, bbox: [-8, 50, 2, 59] },
-      { name: 'France', iso: 'FR', lat: 46, lon: 2, bbox: [-5, 42, 8, 51] },
-      { name: 'Germany', iso: 'DE', lat: 51, lon: 9, bbox: [5, 47, 15, 55] },
-      { name: 'Italy', iso: 'IT', lat: 42, lon: 12, bbox: [6, 35, 19, 47] },
-      { name: 'Spain', iso: 'ES', lat: 40, lon: -3, bbox: [-9, 36, 4, 44] },
-      { name: 'Russia', iso: 'RU', lat: 60, lon: 90, bbox: [20, 41, 180, 82] },
-      { name: 'China', iso: 'CN', lat: 35, lon: 105, bbox: [73, 18, 135, 54] },
-      { name: 'India', iso: 'IN', lat: 20, lon: 78, bbox: [68, 6, 97, 36] },
-      { name: 'Japan', iso: 'JP', lat: 36, lon: 138, bbox: [129, 31, 146, 46] },
-      { name: 'South Korea', iso: 'KR', lat: 36, lon: 128, bbox: [126, 33, 130, 38] },
-      { name: 'Indonesia', iso: 'ID', lat: -5, lon: 120, bbox: [95, -11, 141, 6] },
-      { name: 'Australia', iso: 'AU', lat: -25, lon: 135, bbox: [113, -39, 154, -10] },
-      { name: 'Egypt', iso: 'EG', lat: 26, lon: 30, bbox: [25, 22, 36, 32] },
-      { name: 'Nigeria', iso: 'NG', lat: 9, lon: 8, bbox: [2, 4, 15, 14] },
-      { name: 'South Africa', iso: 'ZA', lat: -29, lon: 24, bbox: [17, -35, 33, -22] },
-      { name: 'Saudi Arabia', iso: 'SA', lat: 24, lon: 45, bbox: [34, 16, 56, 32] },
-      { name: 'Iran', iso: 'IR', lat: 32, lon: 53, bbox: [44, 25, 63, 40] },
-      { name: 'Turkey', iso: 'TR', lat: 39, lon: 35, bbox: [26, 36, 45, 42] },
-      { name: 'Ukraine', iso: 'UA', lat: 49, lon: 31, bbox: [22, 44, 40, 52] },
-      { name: 'Poland', iso: 'PL', lat: 52, lon: 19, bbox: [14, 49, 24, 55] },
-      { name: 'Colombia', iso: 'CO', lat: 4, lon: -72, bbox: [-79, -4, -67, 12] },
-      { name: 'Kenya', iso: 'KE', lat: 1, lon: 38, bbox: [34, -5, 42, 5] },
-      { name: 'Ethiopia', iso: 'ET', lat: 9, lon: 40, bbox: [33, 3, 48, 15] },
-      { name: 'New Zealand', iso: 'NZ', lat: -41, lon: 172, bbox: [166, -47, 179, -34] }
-    ];
+    const countries = [];
+    let countryDataMap = {};   // iso -> api data
+    let selectedCountry = null;
+    let heatmapEnabled = false;
+    let heatmapBlend = { value: 0 }; // shader uniform
 
-    // Generate ID map (512x256 canvas)
+    // ────────────────────────────────────────
+    // FETCH ALL COUNTRIES & BUILD LIST
+    // ────────────────────────────────────────
+    async function loadCountries() {
+      try {
+        const res = await fetch('https://restcountries.com/v3.1/all');
+        const data = await res.json();
+        data.forEach(c => {
+          if (c.latlng && c.latlng.length === 2) {
+            const lat = c.latlng[0];
+            const lon = c.latlng[1];
+            const iso = c.cca3;
+            const name = c.name.common;
+            const flag = c.flag;
+            const population = c.population;
+            const capital = c.capital?.[0] || '';
+            const region = c.region;
+            const area = c.area || 0;
+            countries.push({ iso, name, lat, lon, flag, population, capital, region, area });
+            countryDataMap[iso] = { name, flag, population, capital, region, area };
+          }
+        });
+        console.log(`Loaded ${countries.length} countries`);
+        buildIdMap();
+        createLabels();
+      } catch (e) {
+        console.warn('API failed, using fallback', e);
+        insertFallbackCountries();
+        buildIdMap();
+        createLabels();
+      }
+    }
+
+    function insertFallbackCountries() {
+      // minimal fallback list
+      const fallback = [
+        { iso:'US', name:'United States', lat:38, lon:-97, flag:'🇺🇸', population:334914895, capital:'Washington D.C.', region:'Americas', area:9833520 },
+        { iso:'CN', name:'China', lat:35, lon:105, flag:'🇨🇳', population:1425671352, capital:'Beijing', region:'Asia', area:9596961 },
+        { iso:'IN', name:'India', lat:20, lon:78, flag:'🇮🇳', population:1428627663, capital:'New Delhi', region:'Asia', area:3287263 },
+        { iso:'BR', name:'Brazil', lat:-10, lon:-55, flag:'🇧🇷', population:216422446, capital:'Brasília', region:'Americas', area:8515767 },
+        { iso:'GB', name:'United Kingdom', lat:54, lon:-2, flag:'🇬🇧', population:67508936, capital:'London', region:'Europe', area:243610 },
+        { iso:'FR', name:'France', lat:46, lon:2, flag:'🇫🇷', population:64756584, capital:'Paris', region:'Europe', area:643801 },
+        { iso:'DE', name:'Germany', lat:51, lon:9, flag:'🇩🇪', population:83294633, capital:'Berlin', region:'Europe', area:357114 },
+        { iso:'JP', name:'Japan', lat:36, lon:138, flag:'🇯🇵', population:123294513, capital:'Tokyo', region:'Asia', area:377975 },
+        { iso:'AU', name:'Australia', lat:-25, lon:135, flag:'🇦🇺', population:26439111, capital:'Canberra', region:'Oceania', area:7692024 },
+        { iso:'ZA', name:'South Africa', lat:-29, lon:24, flag:'🇿🇦', population:60414495, capital:'Pretoria', region:'Africa', area:1221037 }
+      ];
+      fallback.forEach(c => {
+        countries.push(c);
+        countryDataMap[c.iso] = { name:c.name, flag:c.flag, population:c.population, capital:c.capital, region:c.region, area:c.area };
+      });
+    }
+
+    // ────────────────────────────────────────
+    // ID-MAP CANVAS (512x256)
+    // ────────────────────────────────────────
     const idMapCanvas = document.createElement('canvas');
     idMapCanvas.width = 512;
     idMapCanvas.height = 256;
     const ctx = idMapCanvas.getContext('2d');
-    ctx.fillStyle = '#000000'; // ocean = id 0
-    ctx.fillRect(0, 0, 512, 256);
-
-    // Helper: lat/lon to x,y on equirectangular map (range x:0-512, y:0-256)
     function latLonToXY(lat, lon) {
       const x = (lon + 180) * (512 / 360);
       const y = (90 - lat) * (256 / 180);
       return [x, y];
     }
-
-    // Fill rectangles for each country (simplified)
-    countries.forEach((country, index) => {
-      const id = index + 1; // reserve 0 for ocean
-      const r = (id >> 16) & 0xff;
-      const g = (id >> 8) & 0xff;
-      const b = id & 0xff;
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      const [x1, y1] = latLonToXY(country.bbox[1], country.bbox[0]); // top-left
-      const [x2, y2] = latLonToXY(country.bbox[3], country.bbox[2]); // bottom-right
-      const w = x2 - x1;
-      const h = y2 - y1;
-      ctx.fillRect(x1, y1, w, h);
-    });
-
-    // Also handle Russia's wrap-around (two parts)
-    // Russia bbox: [20, 41, 180, 82] -> we just draw one rectangle, but it'll cross dateline
-    // For simplicity, we extend Russia manually in the canvas (already covered by the bbox up to 180)
-    const idMapTexture = new THREE.CanvasTexture(idMapCanvas);
-    idMapTexture.minFilter = THREE.LinearFilter;
+    function buildIdMap() {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0,0,512,256);
+      countries.forEach((c, idx) => {
+        const id = idx + 1;
+        const r = (id >> 16) & 0xff;
+        const g = (id >> 8) & 0xff;
+        const b = id & 0xff;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        // draw a small rectangle around lat/lon (simplified)
+        const [x, y] = latLonToXY(c.lat, c.lon);
+        const size = 6;
+        ctx.fillRect(x - size/2, y - size/2, size, size);
+        // also add a larger coverage for bigger countries (approx)
+        if (c.area > 5e6) { // Russia, China, etc.
+          const bigSize = 20;
+          ctx.fillRect(x - bigSize/2, y - bigSize/2, bigSize, bigSize);
+        }
+      });
+    }
 
     // ────────────────────────────────────────
     // THREE.JS SETUP
@@ -254,339 +294,321 @@
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
 
-    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 0, 200);
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+    camera.position.set(0,0,200);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     container.appendChild(renderer.domElement);
 
-    // CSS2 renderer for labels
     const labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
     labelRenderer.domElement.style.position = 'absolute';
     labelRenderer.domElement.style.top = '0px';
-    labelRenderer.domElement.style.pointerEvents = 'none'; // let clicks pass
+    labelRenderer.domElement.style.pointerEvents = 'none';
     container.appendChild(labelRenderer.domElement);
 
-    // OrbitControls
+    // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = 0.08;
     controls.rotateSpeed = 0.5;
     controls.zoomSpeed = 1.2;
-    controls.panSpeed = 0.5;
-    controls.minDistance = 50;
-    controls.maxDistance = 400;
+    controls.minDistance = 60;
+    controls.maxDistance = 350;
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.7;
-    controls.target.set(0, 0, 0);
+    controls.autoRotateSpeed = 0.6;
 
     // ────────────────────────────────────────
-    // GLOBE (with id-map texture)
+    // GLOBE with CUSTOM SHADER for heatmap blending
     // ────────────────────────────────────────
     const earthGroup = new THREE.Group();
     scene.add(earthGroup);
 
-    // Earth sphere
-    const geometry = new THREE.SphereGeometry(50, 128, 128);
-    const material = new THREE.MeshPhongMaterial({
-      map: new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Blue_Marble_2002.png/2560px-Blue_Marble_2002.png'),
-      shininess: 5,
-      specular: new THREE.Color(0x0a0a1a)
-    });
-    const earthMesh = new THREE.Mesh(geometry, material);
-    earthGroup.add(earthMesh);
+    // Load textures
+    const textureLoader = new THREE.TextureLoader();
+    const baseTexture = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Blue_Marble_2002.png/2560px-Blue_Marble_2002.png');
+    const heatTextureCanvas = document.createElement('canvas');
+    heatTextureCanvas.width = 1024;
+    heatTextureCanvas.height = 512;
+    const hctx = heatTextureCanvas.getContext('2d');
+    function generateHeatTexture() {
+      const maxPop = Math.max(...countries.map(c => c.population || 1), 1);
+      hctx.clearRect(0,0,1024,512);
+      countries.forEach(c => {
+        const pop = c.population || 1e6;
+        const ratio = Math.min(pop / maxPop, 1);
+        const r = Math.floor(255 * ratio);
+        const g = Math.floor(120 * (1 - ratio));
+        const b = Math.floor(180 * (1 - ratio));
+        hctx.fillStyle = `rgb(${r},${g},${b})`;
+        const [x, y] = latLonToXY(c.lat, c.lon);
+        const size = 14;
+        hctx.fillRect(x*2 - size/2, y*2 - size/2, size, size);
+      });
+      return new THREE.CanvasTexture(heatTextureCanvas);
+    }
+    let heatTexture = generateHeatTexture();
 
-    // Invisible id-map mesh (for raycasting) - slightly larger to avoid z-fighting
-    const idGeometry = new THREE.SphereGeometry(50.2, 128, 128);
-    const idMaterial = new THREE.MeshBasicMaterial({
-      map: idMapTexture,
-      transparent: true,
-      opacity: 0.0,
+    // Shader material
+    const vertexShader = `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      void main() {
+        vUv = uv;
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const fragmentShader = `
+      uniform sampler2D baseTexture;
+      uniform sampler2D heatTexture;
+      uniform float blend;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      void main() {
+        vec4 baseColor = texture2D(baseTexture, vUv);
+        vec4 heatColor = texture2D(heatTexture, vUv);
+        vec4 color = mix(baseColor, heatColor, blend);
+        float light = 0.3 + 0.7 * max(0.0, dot(vNormal, vec3(0.5,0.8,0.3)));
+        gl_FragColor = vec4(color.rgb * light, 1.0);
+      }
+    `;
+    const uniforms = {
+      baseTexture: { value: baseTexture },
+      heatTexture: { value: heatTexture },
+      blend: { value: 0.0 }
+    };
+    const earthMat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader,
+      fragmentShader,
       side: THREE.FrontSide
     });
-    const idMesh = new THREE.Mesh(idGeometry, idMaterial);
-    idMesh.visible = true; // invisible but raycast targets it
+    const geometry = new THREE.SphereGeometry(50, 128, 128);
+    const earthMesh = new THREE.Mesh(geometry, earthMat);
+    earthGroup.add(earthMesh);
+
+    // ID mesh for raycasting
+    const idTexture = new THREE.CanvasTexture(idMapCanvas);
+    const idMat = new THREE.MeshBasicMaterial({ map: idTexture, transparent: true, opacity: 0.0, side: THREE.FrontSide });
+    const idMesh = new THREE.Mesh(new THREE.SphereGeometry(50.2, 128, 128), idMat);
     earthGroup.add(idMesh);
 
     // Atmosphere glow
-    const glowGeometry = new THREE.SphereGeometry(51, 64, 64);
-    const glowMaterial = new THREE.ShaderMaterial({
+    const glowGeo = new THREE.SphereGeometry(51, 64, 64);
+    const glowMat = new THREE.ShaderMaterial({
       uniforms: {},
-      vertexShader: `
-        varying vec3 vNormal;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vNormal;
-        void main() {
-          float intensity = pow(0.7 - dot(vNormal, vec3(0,0,1)), 2.0);
-          gl_FragColor = vec4(0.13, 0.83, 0.93, 1.0) * intensity;
-        }
-      `,
+      vertexShader: `varying vec3 vNormal; void main() { vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `varying vec3 vNormal; void main() { float intensity = pow(0.75 - dot(vNormal, vec3(0,0,1)), 2.5); gl_FragColor = vec4(0.13,0.83,0.93,1.0) * intensity; }`,
       blending: THREE.AdditiveBlending,
       side: THREE.FrontSide,
       transparent: true,
       depthWrite: false
     });
-    const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+    const glowMesh = new THREE.Mesh(glowGeo, glowMat);
     earthGroup.add(glowMesh);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0x404066);
-    scene.add(ambientLight);
+    scene.add(new THREE.AmbientLight(0x404066));
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    dirLight.position.set(1, 1, 1);
+    dirLight.position.set(1,1,1);
     scene.add(dirLight);
-    const backLight = new THREE.DirectionalLight(0x3366aa, 0.4);
-    backLight.position.set(-1, -0.5, -1);
-    scene.add(backLight);
 
-    // Starfield
-    const starsGeometry = new THREE.BufferGeometry();
-    const starsCount = 2000;
-    const starsPositions = new Float32Array(starsCount * 3);
-    for (let i = 0; i < starsCount * 3; i += 3) {
-      starsPositions[i] = (Math.random() - 0.5) * 1000;
-      starsPositions[i+1] = (Math.random() - 0.5) * 600;
-      starsPositions[i+2] = (Math.random() - 0.5) * 800;
-    }
-    starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
-    const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
-    const stars = new THREE.Points(starsGeometry, starsMaterial);
-    scene.add(stars);
+    // Stars
+    const starsGeo = new THREE.BufferGeometry();
+    const starsPos = new Float32Array(2000*3);
+    for (let i=0;i<2000*3;i+=3) { starsPos[i] = (Math.random()-0.5)*1000; starsPos[i+1] = (Math.random()-0.5)*600; starsPos[i+2] = (Math.random()-0.5)*800; }
+    starsGeo.setAttribute('position', new THREE.BufferAttribute(starsPos,3));
+    scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0xffffff, size:0.5})));
 
     // ────────────────────────────────────────
-    // COUNTRY LABELS (CSS2D)
+    // LABELS (CSS2D)
     // ────────────────────────────────────────
     const labelsGroup = new THREE.Group();
     earthGroup.add(labelsGroup);
-    const labelDivs = [];
-
-    function createLabel(country) {
-      const div = document.createElement('div');
-      div.textContent = country.name;
-      div.style.color = 'white';
-      div.style.fontSize = '10px';
-      div.style.fontWeight = '500';
-      div.style.textShadow = '0 0 6px black';
-      div.style.background = 'rgba(0,0,0,0.5)';
-      div.style.padding = '2px 6px';
-      div.style.borderRadius = '4px';
-      const label = new CSS2DObject(div);
-      const phi = (90 - country.lat) * Math.PI / 180;
-      const theta = (country.lon + 180) * Math.PI / 180;
-      label.position.set(
-        52 * Math.sin(phi) * Math.cos(theta),
-        52 * Math.cos(phi),
-        52 * Math.sin(phi) * Math.sin(theta)
-      );
-      return label;
+    function createLabels() {
+      // Remove existing labels
+      while(labelsGroup.children.length) labelsGroup.remove(labelsGroup.children[0]);
+      countries.forEach(c => {
+        const div = document.createElement('div');
+        div.textContent = c.name;
+        div.style.cssText = 'color:white; font-size:9px; font-weight:500; text-shadow:0 0 6px black; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px;';
+        const label = new CSS2DObject(div);
+        const phi = (90 - c.lat) * Math.PI/180;
+        const theta = (c.lon + 180) * Math.PI/180;
+        label.position.set(52*Math.sin(phi)*Math.cos(theta), 52*Math.cos(phi), 52*Math.sin(phi)*Math.sin(theta));
+        labelsGroup.add(label);
+      });
     }
 
-    countries.forEach(country => {
-      const label = createLabel(country);
-      labelsGroup.add(label);
-      labelDivs.push({ div: label.element, country });
-    });
+    // ────────────────────────────────────────
+    // CAMERA FLY-TO (GSAP)
+    // ────────────────────────────────────────
+    function flyToCountry(country) {
+      controls.autoRotate = false;
+      document.getElementById('btn-auto-rotate').classList.remove('active');
+      const lat = country.lat * Math.PI/180;
+      const lon = country.lon * Math.PI/180;
+      const targetPos = new THREE.Vector3(
+        130 * Math.cos(lat) * Math.cos(lon),
+        130 * Math.sin(lat),
+        130 * Math.cos(lat) * Math.sin(lon)
+      );
+      // GSAP animate camera and controls target
+      gsap.to(camera.position, {
+        x: targetPos.x, y: targetPos.y, z: targetPos.z,
+        duration: 1.2,
+        ease: 'power2.inOut',
+        onUpdate: () => controls.update()
+      });
+      gsap.to(controls.target, {
+        x: 0, y: 0, z: 0,
+        duration: 1.2,
+        ease: 'power2.inOut',
+        onUpdate: () => controls.update()
+      });
+      openPanel(country);
+    }
 
     // ────────────────────────────────────────
-    // UI ELEMENTS
+    // UI & DATA PANEL
     // ────────────────────────────────────────
-    const searchInput = document.getElementById('search-input');
-    const searchClear = document.getElementById('search-clear');
-    const suggestions = document.getElementById('suggestions');
-    const dataPanel = document.getElementById('data-panel');
-    const panelClose = document.getElementById('panel-close');
+    const panel = document.getElementById('data-panel');
     const panelFlag = document.getElementById('panel-flag');
     const panelName = document.getElementById('panel-name');
     const statPop = document.getElementById('stat-pop');
     const statCapital = document.getElementById('stat-capital');
     const statRegion = document.getElementById('stat-region');
     const statArea = document.getElementById('stat-area');
-    const panelLoader = document.getElementById('panel-loader');
-    const btnAutoRotate = document.getElementById('btn-auto-rotate');
-    const btnHeatmap = document.getElementById('btn-heatmap');
-    const btnReset = document.getElementById('btn-reset');
 
-    let selectedCountry = null;
-    let heatmapEnabled = false;
-
-    // ────────────────────────────────────────
-    // API DATA FETCH
-    // ────────────────────────────────────────
-    async function fetchCountryData(isoCode) {
-      panelLoader.style.display = 'block';
-      try {
-        const res = await fetch(`https://restcountries.com/v3.1/alpha/${isoCode}`);
-        const data = await res.json();
-        if (data && data.length > 0) {
-          const c = data[0];
-          const nativeName = c.name?.common || c.name?.official || isoCode;
-          const flag = c.flag || '';
-          const population = c.population?.toLocaleString() || '—';
-          const capital = c.capital?.[0] || '—';
-          const region = c.region || '—';
-          const area = c.area?.toLocaleString() + ' km²' || '—';
-          return { name: nativeName, flag, population, capital, region, area };
-        }
-      } catch (e) {
-        console.warn('API fetch failed, using fallback');
-      }
-      panelLoader.style.display = 'none';
-      return null;
-    }
-
-    function updatePanelUI(data) {
-      panelFlag.textContent = data.flag || '🌍';
-      panelName.textContent = data.name;
-      statPop.textContent = data.population;
-      statCapital.textContent = data.capital;
-      statRegion.textContent = data.region;
-      statArea.textContent = data.area;
-      panelLoader.style.display = 'none';
-    }
-
-    async function openPanel(country) {
+    function openPanel(country) {
       selectedCountry = country;
-      dataPanel.classList.add('open');
-      // Show loading state
-      panelFlag.textContent = '🌐';
-      panelName.textContent = country.name;
-      statPop.textContent = '...';
-      statCapital.textContent = '...';
-      statRegion.textContent = '...';
-      statArea.textContent = '...';
-      const apiData = await fetchCountryData(country.iso);
-      if (apiData) {
-        updatePanelUI(apiData);
-      } else {
-        // Fallback using basic data from our list
-        panelFlag.textContent = country.flag || '';
-        panelName.textContent = country.name;
-        statPop.textContent = '—';
-        statCapital.textContent = '—';
-        statRegion.textContent = '—';
-        statArea.textContent = '—';
-        panelLoader.style.display = 'none';
-      }
+      const data = countryDataMap[country.iso] || {};
+      panelFlag.textContent = data.flag || '';
+      panelName.textContent = data.name;
+      statPop.textContent = data.population?.toLocaleString() || '—';
+      statCapital.textContent = data.capital || '—';
+      statRegion.textContent = data.region || '—';
+      statArea.textContent = data.area ? data.area.toLocaleString() + ' km²' : '—';
+      panel.classList.add('open');
     }
 
     function closePanel() {
-      dataPanel.classList.remove('open');
+      panel.classList.remove('open');
       selectedCountry = null;
     }
 
     // ────────────────────────────────────────
-    // FLY-TO ANIMATION (GSAP-like using tween)
-    // ────────────────────────────────────────
-    function flyToCountry(country) {
-      controls.autoRotate = false;
-      btnAutoRotate.classList.remove('active');
-      const lat = country.lat * Math.PI / 180;
-      const lon = country.lon * Math.PI / 180;
-      const radius = 120;
-      const targetPos = new THREE.Vector3(
-        radius * Math.cos(lat) * Math.cos(lon),
-        radius * Math.sin(lat),
-        radius * Math.cos(lat) * Math.sin(lon)
-      );
-      
-      // Animate camera
-      const startPos = camera.position.clone();
-      const startTarget = controls.target.clone();
-      const endTarget = new THREE.Vector3(0, 0, 0);
-      
-      new TWEEN.Tween({ t: 0 })
-        .to({ t: 1 }, 1200)
-        .easing(TWEEN.Easing.Quadratic.InOut)
-        .onUpdate((obj) => {
-          camera.position.lerpVectors(startPos, targetPos, obj.t);
-          controls.target.lerpVectors(startTarget, endTarget, obj.t);
-          controls.update();
-        })
-        .start();
-      
-      openPanel(country);
-    }
-
-    // Simple tween engine placeholder
-    const TWEEN = {
-      Easing: {
-        Quadratic: { InOut: (k) => { if ((k *= 2) < 1) return 0.5 * k * k; return -0.5 * ((k-1)*(k-3) - 1); } }
-      },
-      Tween: function(obj) {
-        this.obj = obj;
-        this.to = function(props, duration) { this.props = props; this.duration = duration; return this; };
-        this.easing = function(fn) { this.easingFn = fn; return this; };
-        this.onUpdate = function(cb) { this.updateCb = cb; return this; };
-        this.start = function() {
-          const start = performance.now();
-          const initial = { ...obj };
-          const animate = (now) => {
-            const elapsed = now - start;
-            const t = Math.min(elapsed / this.duration, 1);
-            for (let key in this.props) {
-              obj[key] = initial[key] + (this.props[key] - initial[key]) * this.easingFn(t);
-            }
-            if (this.updateCb) this.updateCb(obj);
-            if (t < 1) requestAnimationFrame(animate);
-          };
-          requestAnimationFrame(animate);
-        };
-        return this;
-      }
-    };
-
-    // ────────────────────────────────────────
-    // CLICK HANDLING (raycast on idMesh)
+    // RAYCAST CLICK
     // ────────────────────────────────────────
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-
-    function onGlobeClick(event) {
-      // Calculate mouse in normalized device coordinates
+    renderer.domElement.addEventListener('click', (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
+      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
       raycaster.setFromCamera(mouse, camera);
       const intersects = raycaster.intersectObject(idMesh);
       if (intersects.length > 0) {
         const uv = intersects[0].uv;
-        // Sample id map
         const x = Math.floor(uv.x * 512);
         const y = Math.floor((1 - uv.y) * 256);
         const pixel = ctx.getImageData(x, y, 1, 1).data;
         const id = (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
         if (id > 0 && id <= countries.length) {
-          const country = countries[id - 1];
+          const country = countries[id-1];
           flyToCountry(country);
         }
       }
-    }
-
-    renderer.domElement.addEventListener('click', onGlobeClick);
+    });
 
     // ────────────────────────────────────────
-    // SEARCH FUNCTIONALITY
+    // SCROLL STORYTELLING (GSAP ScrollTrigger)
     // ────────────────────────────────────────
+    gsap.registerPlugin(ScrollTrigger);
+    const scrollContainer = document.getElementById('scroll-container');
+    // We'll define story steps: each step moves camera to a continent
+    const storySteps = [
+      { lat: 30, lon: -40, zoom: 2.5 }, // North America
+      { lat: -10, lon: -55, zoom: 2.8 }, // South America
+      { lat: 50, lon: 10, zoom: 2.2 },  // Europe
+      { lat: 30, lon: 80, zoom: 2.0 },  // Asia
+      { lat: -25, lon: 135, zoom: 2.6 }, // Australia
+      { lat: 0, lon: 20, zoom: 3.0 }    // Africa
+    ];
+
+    // Create a timeline
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: scrollContainer,
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 1,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          // progress 0-1
+          const progress = self.progress;
+          const step = Math.floor(progress * (storySteps.length-1));
+          const nextStep = Math.min(step + 1, storySteps.length-1);
+          const stepProgress = (progress * (storySteps.length-1)) - step;
+          const s1 = storySteps[step];
+          const s2 = storySteps[nextStep];
+          // interpolate lat/lon and zoom
+          const lat = s1.lat + (s2.lat - s1.lat) * stepProgress;
+          const lon = s1.lon + (s2.lon - s1.lon) * stepProgress;
+          const zoom = s1.zoom + (s2.zoom - s1.zoom) * stepProgress;
+          // Convert to camera position
+          const phi = (90 - lat) * Math.PI/180;
+          const theta = (lon + 180) * Math.PI/180;
+          const dist = 200 / zoom;
+          camera.position.set(
+            dist * Math.sin(phi) * Math.cos(theta),
+            dist * Math.cos(phi),
+            dist * Math.sin(phi) * Math.sin(theta)
+          );
+          controls.target.set(0,0,0);
+          controls.update();
+          if (controls.autoRotate) {
+            controls.autoRotate = false;
+            document.getElementById('btn-auto-rotate').classList.remove('active');
+          }
+        }
+      }
+    });
+
+    // ────────────────────────────────────────
+    // HEATMAP TOGGLE WITH SMOOTH TRANSITION
+    // ────────────────────────────────────────
+    const btnHeatmap = document.getElementById('btn-heatmap');
+    btnHeatmap.addEventListener('click', () => {
+      heatmapEnabled = !heatmapEnabled;
+      btnHeatmap.classList.toggle('active', heatmapEnabled);
+      // Animate blend uniform
+      gsap.to(uniforms.blend, {
+        value: heatmapEnabled ? 1.0 : 0.0,
+        duration: 0.8,
+        ease: 'power2.inOut'
+      });
+    });
+
+    // ────────────────────────────────────────
+    // SEARCH & OTHER UI
+    // ────────────────────────────────────────
+    const searchInput = document.getElementById('search-input');
+    const searchClear = document.getElementById('search-clear');
+    const suggestions = document.getElementById('suggestions');
     searchInput.addEventListener('input', () => {
-      const query = searchInput.value.trim().toLowerCase();
+      const q = searchInput.value.trim().toLowerCase();
       suggestions.innerHTML = '';
-      if (query) {
+      if (q) {
         searchClear.classList.add('visible');
-        const matches = countries.filter(c => c.name.toLowerCase().includes(query));
+        const matches = countries.filter(c => c.name.toLowerCase().includes(q));
         matches.forEach(c => {
           const div = document.createElement('div');
           div.className = 'suggestion-item';
-          div.textContent = c.name;
+          div.textContent = `${c.flag || ''} ${c.name}`;
           div.addEventListener('click', () => {
             flyToCountry(c);
             searchInput.value = '';
@@ -606,78 +628,40 @@
       searchClear.classList.remove('visible');
       suggestions.classList.remove('active');
     });
-    searchInput.addEventListener('blur', () => setTimeout(() => suggestions.classList.remove('active'), 200));
-
-    // ────────────────────────────────────────
-    // BUTTONS
-    // ────────────────────────────────────────
+    document.getElementById('panel-close').addEventListener('click', closePanel);
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      gsap.to(camera.position, { x:0, y:0, z:200, duration:1, ease:'power2.inOut' });
+      gsap.to(controls.target, { x:0, y:0, z:0, duration:1, ease:'power2.inOut' });
+      closePanel();
+      controls.autoRotate = true;
+      document.getElementById('btn-auto-rotate').classList.add('active');
+    });
+    const btnAutoRotate = document.getElementById('btn-auto-rotate');
     btnAutoRotate.addEventListener('click', () => {
       controls.autoRotate = !controls.autoRotate;
       btnAutoRotate.classList.toggle('active', controls.autoRotate);
     });
-    btnAutoRotate.classList.add('active'); // start active
-
-    btnHeatmap.addEventListener('click', () => {
-      heatmapEnabled = !heatmapEnabled;
-      btnHeatmap.classList.toggle('active', heatmapEnabled);
-      if (heatmapEnabled) {
-        // Swap texture to a heatmap version (using a canvas generated from population)
-        // For simplicity, we'll tint the globe material or replace map with a procedural canvas
-        const heatCanvas = document.createElement('canvas');
-        heatCanvas.width = 1024;
-        heatCanvas.height = 512;
-        const hCtx = heatCanvas.getContext('2d');
-        // Draw heatmap based on country populations (using same bbox fill)
-        const maxPop = 1428627663;
-        countries.forEach(c => {
-          // approximate population from our static data (hardcode or fetch later)
-          const pop = { US:334914895, CA:40097761, MX:128455567, BR:216422446, AR:45773884, GB:67508936, FR:64756584, DE:83294633, IT:58870762, ES:47519628, RU:144444359, CN:1425671352, IN:1428627663, JP:123294513, KR:51784059, ID:277534122, AU:26439111, EG:112716598, NG:223804632, ZA:60414495, SA:36947025, IR:89172767, TR:85279553, UA:36744634, PL:41026067, CO:52085168, KE:55100586, ET:126527060, NZ:5228100 }[c.iso] || 1e6;
-          const ratio = pop / maxPop;
-          const r = Math.floor(255 * ratio);
-          const g = Math.floor(100 * (1 - ratio));
-          const b = Math.floor(200 * (1 - ratio));
-          hCtx.fillStyle = `rgb(${r},${g},${b})`;
-          const [x1, y1] = latLonToXY(c.bbox[1], c.bbox[0]);
-          const [x2, y2] = latLonToXY(c.bbox[3], c.bbox[2]);
-          hCtx.fillRect(x1*2, y1*2, (x2-x1)*2, (y2-y1)*2);
-        });
-        const heatTexture = new THREE.CanvasTexture(heatCanvas);
-        earthMesh.material.map = heatTexture;
-        earthMesh.material.needsUpdate = true;
-      } else {
-        // Restore original texture
-        earthMesh.material.map = new THREE.TextureLoader().load('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Blue_Marble_2002.png/2560px-Blue_Marble_2002.png');
-        earthMesh.material.needsUpdate = true;
-      }
-    });
-
-    btnReset.addEventListener('click', () => {
-      controls.target.set(0,0,0);
-      camera.position.set(0,0,200);
-      controls.update();
-      closePanel();
-    });
-
-    panelClose.addEventListener('click', closePanel);
 
     // ────────────────────────────────────────
     // ANIMATION LOOP
     // ────────────────────────────────────────
     function animate() {
       requestAnimationFrame(animate);
-      TWEEN.update?.(); // if we use proper tween lib
       controls.update();
-      stars.rotation.y += 0.0001;
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
     }
-    
-    // Simple TWEEN.update for our homemade tween
-    (function() {
-      // override TWEEN with basic update empty
-    })();
 
-    animate();
+    // STARTUP
+    loadCountries().then(() => {
+      buildIdMap();
+      createLabels();
+      // Update heat texture now that we have real data
+      heatTexture = generateHeatTexture();
+      uniforms.heatTexture.value = heatTexture;
+      animate();
+    });
+
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -685,9 +669,7 @@
       labelRenderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Init search clear visibility
-    searchClear.classList.remove('visible');
-    console.log('🌍 3D Globe ready — click a country to fly in');
+    console.log('🌍 Next Level Globe ready – scroll, search, fly');
   </script>
 </body>
 </html>
