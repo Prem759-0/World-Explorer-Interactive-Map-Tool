@@ -3,177 +3,167 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>World Explorer — Next Level 3D Globe</title>
+  <title>World Explorer — Super Detail 3D Globe</title>
   <style>
     :root {
       --bg: #020617;
-      --surface: rgba(15,23,42,0.8);
+      --surface: rgba(15, 23, 42, 0.8);
       --accent: #22d3ee;
+      --accent-purple: #8b5cf6;
       --text: #e2e8f0;
-      --muted: #94a3b8;
+      --text-muted: #94a3b8;
+      --glass-border: rgba(255,255,255,0.08);
       --radius: 20px;
+      --radius-md: 14px;
     }
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-      overflow-x: hidden;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
     }
-
-    /* Scroll container for storytelling */
-    #scroll-container {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      pointer-events: none; /* let clicks pass to canvas */
-    }
-    #scroll-content {
-      height: 400vh; /* enough for story steps */
-      width: 100%;
-    }
-
     #globe-container {
       position: fixed;
       inset: 0;
-      z-index: 5;
       cursor: grab;
     }
     #globe-container:active { cursor: grabbing; }
 
-    /* Overlay UI */
-    #ui-overlay {
-      position: fixed;
-      z-index: 100;
-      pointer-events: none;
-      inset: 0;
-    }
-
+    /* Top bar */
     #top-bar {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      pointer-events: auto;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: var(--surface);
-      backdrop-filter: blur(24px);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 50px;
-      padding: 8px 10px 8px 22px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      z-index: 200; display: flex; align-items: center; gap: 12px;
+      background: var(--surface); backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border); border-radius: 50px;
+      padding: 8px 12px 8px 22px; box-shadow: 0 12px 40px rgba(0,0,0,0.5);
     }
-    .dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 16px rgba(34,211,238,0.5);
-    }
-    #search-input {
-      background: transparent; border: none; outline: none;
-      color: var(--text); font-size: 15px; width: 200px;
-    }
-    #search-input::placeholder { color: var(--muted); }
-    #search-clear {
-      background: rgba(255,255,255,0.06); border: none; color: var(--muted);
-      width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
-      display: none; align-items: center; justify-content: center; font-size: 14px;
-    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 16px rgba(34,211,238,0.5); }
+    #search-input { background: transparent; border: none; outline: none; color: var(--text); font-size: 15px; width: 200px; }
+    #search-input::placeholder { color: var(--text-muted); }
+    #search-clear { background: rgba(255,255,255,0.06); border: none; color: var(--text-muted); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 14px; }
     #search-clear.visible { display: flex; }
     #suggestions {
       position: absolute; top: calc(100% + 8px); left: 0; right: 0;
       background: var(--surface); backdrop-filter: blur(24px);
-      border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+      border: 1px solid var(--glass-border); border-radius: var(--radius-md);
       display: none; flex-direction: column; max-height: 240px; overflow-y: auto;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6);
     }
     #suggestions.active { display: flex; }
     .suggestion-item {
-      padding: 10px 18px; cursor: pointer; color: var(--muted);
+      padding: 10px 18px; cursor: pointer; color: var(--text-muted);
       transition: 0.2s; border-bottom: 1px solid rgba(255,255,255,0.03);
     }
     .suggestion-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
 
+    /* Data panel */
     #data-panel {
-      position: absolute;
-      right: -440px; top: 50%; transform: translateY(-50%);
-      width: 380px; max-width: 90vw;
+      position: fixed; right: -460px; top: 50%; transform: translateY(-50%);
+      width: 400px; max-width: 90vw; z-index: 150;
       background: var(--surface); backdrop-filter: blur(28px);
-      border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius);
+      border: 1px solid var(--glass-border); border-radius: var(--radius);
       padding: 28px 26px 24px;
       transition: right 0.55s cubic-bezier(0.25,0.46,0.45,0.94);
       box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-      pointer-events: auto;
+      display: flex; flex-direction: column; gap: 16px;
     }
     #data-panel.open { right: 28px; }
-    #panel-close {
-      position: absolute; top: 14px; right: 16px;
-      background: rgba(255,255,255,0.06); border: none; color: #fff;
-      width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 18px;
-      display: flex; align-items: center; justify-content: center;
-    }
+    #panel-close { position: absolute; top: 14px; right: 16px; background: rgba(255,255,255,0.06); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
     #panel-flag { font-size: 48px; }
-    #panel-name {
-      font-size: 24px; font-weight: 700;
-      background: linear-gradient(135deg, #fff, var(--accent)); -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .panel-stat { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
-    .panel-stat-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; }
-    .panel-stat-value { font-weight: 600; }
+    #panel-name { font-size: 24px; font-weight: 700; background: linear-gradient(135deg, #fff, var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .stat-label { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; }
+    .stat-value { font-weight: 600; }
+    #mini-chart { width: 100%; height: 60px; margin-top: 8px; border-radius: 8px; background: rgba(255,255,255,0.03); }
 
+    /* Story card */
+    #story-card {
+      position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+      background: var(--surface); backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border); border-radius: var(--radius-md);
+      padding: 16px 24px; z-index: 180; pointer-events: none;
+      opacity: 0; transition: opacity 0.4s;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+      text-align: center; font-size: 18px; font-weight: 500;
+    }
+    #story-card.visible { opacity: 1; }
+
+    /* Controls */
     #controls {
-      position: absolute;
-      bottom: 28px; right: 28px;
+      position: fixed; bottom: 28px; right: 28px; z-index: 200;
       display: flex; flex-direction: column; gap: 8px;
-      pointer-events: auto;
     }
     .ctrl-btn {
       width: 42px; height: 42px; border-radius: 50%;
       background: var(--surface); backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.08); color: #fff; cursor: pointer;
+      border: 1px solid var(--glass-border); color: #fff; cursor: pointer;
       font-size: 18px; display: flex; align-items: center; justify-content: center;
-      transition: 0.2s; box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      transition: all 0.2s; box-shadow: 0 6px 20px rgba(0,0,0,0.4);
     }
     .ctrl-btn:hover { border-color: var(--accent); box-shadow: 0 0 20px var(--accent); }
-    .ctrl-btn.active { border-color: #8b5cf6; background: rgba(139,92,246,0.2); }
+    .ctrl-btn.active { border-color: var(--accent-purple); background: rgba(139,92,246,0.2); }
+
+    /* Time slider */
+    #time-slider-container {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      z-index: 200; display: flex; align-items: center; gap: 12px;
+      background: var(--surface); backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border); border-radius: 50px;
+      padding: 8px 20px; box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    #year-label { font-size: 14px; min-width: 40px; text-align: center; }
+    input[type=range] { width: 120px; accent-color: var(--accent); }
 
     @media (max-width: 768px) {
-      #data-panel { width: calc(100vw - 20px); right: -110vw; bottom: 16px; top: auto; transform: none; }
+      #data-panel { width: calc(100vw - 20px); right: -110vw; bottom: 16px; top: auto; transform: none; border-radius: var(--radius) var(--radius) 8px 8px; }
       #data-panel.open { right: 10px; }
+      #time-slider-container { bottom: 80px; }
     }
   </style>
 </head>
 <body>
   <div id="globe-container"></div>
 
-  <!-- Scroll story layer (invisible) -->
-  <div id="scroll-container">
-    <div id="scroll-content"></div>
+  <!-- Top bar -->
+  <div id="top-bar">
+    <div class="dot"></div>
+    <input type="text" id="search-input" placeholder="Search country..." autocomplete="off">
+    <button id="search-clear">✕</button>
+    <div id="suggestions"></div>
   </div>
 
-  <!-- UI -->
-  <div id="ui-overlay">
-    <div id="top-bar">
-      <div class="dot"></div>
-      <input type="text" id="search-input" placeholder="Search country..." autocomplete="off">
-      <button id="search-clear">✕</button>
-      <div id="suggestions"></div>
-    </div>
-    <div id="data-panel">
-      <button id="panel-close">✕</button>
-      <div id="panel-flag">🌍</div>
-      <div id="panel-name">Select a Country</div>
-      <div class="panel-stat"><span class="panel-stat-label">Population</span><span class="panel-stat-value" id="stat-pop">—</span></div>
-      <div class="panel-stat"><span class="panel-stat-label">Capital</span><span class="panel-stat-value" id="stat-capital">—</span></div>
-      <div class="panel-stat"><span class="panel-stat-label">Region</span><span class="panel-stat-value" id="stat-region">—</span></div>
-      <div class="panel-stat"><span class="panel-stat-label">Area</span><span class="panel-stat-value" id="stat-area">—</span></div>
-    </div>
-    <div id="controls">
-      <button class="ctrl-btn active" id="btn-auto-rotate" title="Auto-rotate">⟳</button>
-      <button class="ctrl-btn" id="btn-heatmap" title="Heatmap">🔥</button>
-      <button class="ctrl-btn" id="btn-reset" title="Reset">⌂</button>
-    </div>
+  <!-- Data panel -->
+  <div id="data-panel">
+    <button id="panel-close">✕</button>
+    <div id="panel-flag">🌍</div>
+    <div id="panel-name">Select a Country</div>
+    <div class="stat-row"><span class="stat-label">Population</span><span class="stat-value" id="stat-pop">—</span></div>
+    <div class="stat-row"><span class="stat-label">Capital</span><span class="stat-value" id="stat-cap">—</span></div>
+    <div class="stat-row"><span class="stat-label">Region</span><span class="stat-value" id="stat-region">—</span></div>
+    <div class="stat-row"><span class="stat-label">Area</span><span class="stat-value" id="stat-area">—</span></div>
+    <div class="stat-row"><span class="stat-label">Languages</span><span class="stat-value" id="stat-lang">—</span></div>
+    <div class="stat-row"><span class="stat-label">Currencies</span><span class="stat-value" id="stat-curr">—</span></div>
+    <canvas id="mini-chart" width="300" height="60"></canvas>
+  </div>
+
+  <!-- Story card -->
+  <div id="story-card"></div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <button class="ctrl-btn active" id="btn-auto-rotate" title="Auto-rotate">⟳</button>
+    <button class="ctrl-btn" id="btn-heatmap" title="Heatmap">🔥</button>
+    <button class="ctrl-btn" id="btn-reset" title="Reset view">⌂</button>
+  </div>
+
+  <!-- Time slider -->
+  <div id="time-slider-container">
+    <span id="time-label">Year</span>
+    <input type="range" id="time-slider" min="1960" max="2024" value="2024" step="1">
+    <span id="year-label">2024</span>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -191,52 +181,56 @@
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
     import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+    gsap.registerPlugin(ScrollTrigger);
 
     // ────────────────────────────────────────
-    // GLOBAL STATE & API DATA
+    // GLOBAL DATA
     // ────────────────────────────────────────
     const countries = [];
-    let countryDataMap = {};   // iso -> api data
+    let countryDataMap = {};
+    let maxPopulation = 1;
     let selectedCountry = null;
+    let hoveredCountryId = 0;
+    let currentYear = 2024;
+    let dataMode = 'population'; // population | gdp | density
     let heatmapEnabled = false;
-    let heatmapBlend = { value: 0 }; // shader uniform
+    let heatmapTexture;
 
     // ────────────────────────────────────────
-    // FETCH ALL COUNTRIES & BUILD LIST
+    // FETCH ALL COUNTRIES (REST API)
     // ────────────────────────────────────────
     async function loadCountries() {
       try {
         const res = await fetch('https://restcountries.com/v3.1/all');
         const data = await res.json();
         data.forEach(c => {
-          if (c.latlng && c.latlng.length === 2) {
-            const lat = c.latlng[0];
-            const lon = c.latlng[1];
-            const iso = c.cca3;
-            const name = c.name.common;
-            const flag = c.flag;
-            const population = c.population;
-            const capital = c.capital?.[0] || '';
-            const region = c.region;
-            const area = c.area || 0;
-            countries.push({ iso, name, lat, lon, flag, population, capital, region, area });
-            countryDataMap[iso] = { name, flag, population, capital, region, area };
-          }
+          if (!c.latlng || c.latlng.length !== 2) return;
+          const iso = c.cca3;
+          const name = c.name.common;
+          const flag = c.flag;
+          const population = c.population || 0;
+          const capital = c.capital?.[0] || '';
+          const region = c.region || '';
+          const area = c.area || 0;
+          const languages = c.languages ? Object.values(c.languages).join(', ') : '';
+          const currencies = c.currencies ? Object.keys(c.currencies).map(k => c.currencies[k].name).join(', ') : '';
+          const lat = c.latlng[0];
+          const lon = c.latlng[1];
+          const density = area > 0 ? population / area : 0;
+          const gdp = c.gdp || 0; // not always present
+          countries.push({ iso, name, lat, lon, flag, population, capital, region, area, languages, currencies, density, gdp });
+          countryDataMap[iso] = { name, flag, population, capital, region, area, languages, currencies, density, gdp };
         });
+        maxPopulation = Math.max(...countries.map(c => c.population), 1);
         console.log(`Loaded ${countries.length} countries`);
-        buildIdMap();
-        createLabels();
       } catch (e) {
-        console.warn('API failed, using fallback', e);
-        insertFallbackCountries();
-        buildIdMap();
-        createLabels();
+        console.warn('API failed, using minimal fallback');
+        insertFallback();
       }
     }
 
-    function insertFallbackCountries() {
-      // minimal fallback list
-      const fallback = [
+    function insertFallback() {
+      const fb = [
         { iso:'US', name:'United States', lat:38, lon:-97, flag:'🇺🇸', population:334914895, capital:'Washington D.C.', region:'Americas', area:9833520 },
         { iso:'CN', name:'China', lat:35, lon:105, flag:'🇨🇳', population:1425671352, capital:'Beijing', region:'Asia', area:9596961 },
         { iso:'IN', name:'India', lat:20, lon:78, flag:'🇮🇳', population:1428627663, capital:'New Delhi', region:'Asia', area:3287263 },
@@ -248,42 +242,41 @@
         { iso:'AU', name:'Australia', lat:-25, lon:135, flag:'🇦🇺', population:26439111, capital:'Canberra', region:'Oceania', area:7692024 },
         { iso:'ZA', name:'South Africa', lat:-29, lon:24, flag:'🇿🇦', population:60414495, capital:'Pretoria', region:'Africa', area:1221037 }
       ];
-      fallback.forEach(c => {
+      fb.forEach(c => {
         countries.push(c);
-        countryDataMap[c.iso] = { name:c.name, flag:c.flag, population:c.population, capital:c.capital, region:c.region, area:c.area };
+        countryDataMap[c.iso] = c;
       });
+      maxPopulation = Math.max(...countries.map(c => c.population), 1);
     }
 
     // ────────────────────────────────────────
-    // ID-MAP CANVAS (512x256)
+    // ID MAP GENERATION (1024x512 canvas)
     // ────────────────────────────────────────
-    const idMapCanvas = document.createElement('canvas');
-    idMapCanvas.width = 512;
-    idMapCanvas.height = 256;
-    const ctx = idMapCanvas.getContext('2d');
-    function latLonToXY(lat, lon) {
-      const x = (lon + 180) * (512 / 360);
-      const y = (90 - lat) * (256 / 180);
+    const idCanvas = document.createElement('canvas');
+    idCanvas.width = 1024;
+    idCanvas.height = 512;
+    const ctx = idCanvas.getContext('2d');
+    function latLonToPixel(lat, lon) {
+      const x = (lon + 180) * (1024 / 360);
+      const y = (90 - lat) * (512 / 180);
       return [x, y];
     }
     function buildIdMap() {
       ctx.fillStyle = '#000000';
-      ctx.fillRect(0,0,512,256);
+      ctx.fillRect(0,0,1024,512);
       countries.forEach((c, idx) => {
         const id = idx + 1;
         const r = (id >> 16) & 0xff;
         const g = (id >> 8) & 0xff;
         const b = id & 0xff;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
-        // draw a small rectangle around lat/lon (simplified)
-        const [x, y] = latLonToXY(c.lat, c.lon);
-        const size = 6;
-        ctx.fillRect(x - size/2, y - size/2, size, size);
-        // also add a larger coverage for bigger countries (approx)
-        if (c.area > 5e6) { // Russia, China, etc.
-          const bigSize = 20;
-          ctx.fillRect(x - bigSize/2, y - bigSize/2, bigSize, bigSize);
-        }
+        const [x, y] = latLonToPixel(c.lat, c.lon);
+        // Radius proportional to sqrt(area) so that larger countries have larger click targets
+        const area = c.area || 50000;
+        const baseRadius = Math.max(6, Math.sqrt(area) * 0.015);
+        ctx.beginPath();
+        ctx.arc(x, y, baseRadius, 0, Math.PI*2);
+        ctx.fill();
       });
     }
 
@@ -293,15 +286,12 @@
     const container = document.getElementById('globe-container');
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020617);
-
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
     camera.position.set(0,0,200);
-
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
-
     const labelRenderer = new CSS2DRenderer();
     labelRenderer.setSize(window.innerWidth, window.innerHeight);
     labelRenderer.domElement.style.position = 'absolute';
@@ -321,37 +311,54 @@
     controls.autoRotateSpeed = 0.6;
 
     // ────────────────────────────────────────
-    // GLOBE with CUSTOM SHADER for heatmap blending
+    // GLOBE WITH CUSTOM SHADER (base + heatmap + highlight)
     // ────────────────────────────────────────
     const earthGroup = new THREE.Group();
     scene.add(earthGroup);
 
-    // Load textures
     const textureLoader = new THREE.TextureLoader();
     const baseTexture = textureLoader.load('https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Blue_Marble_2002.png/2560px-Blue_Marble_2002.png');
-    const heatTextureCanvas = document.createElement('canvas');
-    heatTextureCanvas.width = 1024;
-    heatTextureCanvas.height = 512;
-    const hctx = heatTextureCanvas.getContext('2d');
-    function generateHeatTexture() {
-      const maxPop = Math.max(...countries.map(c => c.population || 1), 1);
+    const idTexture = new THREE.CanvasTexture(idCanvas);
+    
+    // Heatmap canvas
+    const heatCanvas = document.createElement('canvas');
+    heatCanvas.width = 1024;
+    heatCanvas.height = 512;
+    const hctx = heatCanvas.getContext('2d');
+    function generateHeatTexture(year) {
       hctx.clearRect(0,0,1024,512);
+      const maxVal = dataMode === 'population' ? maxPopulation : 
+                     (dataMode === 'density' ? Math.max(...countries.map(c=>c.density||0),1) : 
+                      Math.max(...countries.map(c=>c.gdp||0),1));
       countries.forEach(c => {
-        const pop = c.population || 1e6;
-        const ratio = Math.min(pop / maxPop, 1);
+        let value;
+        if (dataMode === 'population') {
+          // Simulate historical growth
+          const growthRate = 0.01 + Math.random()*0.02; // random growth per country
+          value = c.population * Math.exp(growthRate * (year - 2024));
+        } else if (dataMode === 'density') {
+          const growthRate = 0.005 + Math.random()*0.01;
+          value = (c.density || 0) * Math.exp(growthRate * (year - 2024));
+        } else {
+          value = c.gdp || c.population * 1000; // fallback
+        }
+        const ratio = Math.min(Math.max(value / maxVal, 0), 1);
         const r = Math.floor(255 * ratio);
         const g = Math.floor(120 * (1 - ratio));
-        const b = Math.floor(180 * (1 - ratio));
+        const b = Math.floor(200 * (1 - ratio));
         hctx.fillStyle = `rgb(${r},${g},${b})`;
-        const [x, y] = latLonToXY(c.lat, c.lon);
-        const size = 14;
-        hctx.fillRect(x*2 - size/2, y*2 - size/2, size, size);
+        const [x, y] = latLonToPixel(c.lat, c.lon);
+        const area = c.area || 100000;
+        const radius = Math.max(4, Math.sqrt(area) * 0.012);
+        hctx.beginPath();
+        hctx.arc(x, y, radius, 0, Math.PI*2);
+        hctx.fill();
       });
-      return new THREE.CanvasTexture(heatTextureCanvas);
+      return new THREE.CanvasTexture(heatCanvas);
     }
-    let heatTexture = generateHeatTexture();
+    heatmapTexture = generateHeatTexture(2024);
 
-    // Shader material
+    // Custom shader
     const vertexShader = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -364,21 +371,33 @@
     const fragmentShader = `
       uniform sampler2D baseTexture;
       uniform sampler2D heatTexture;
+      uniform sampler2D idTexture;
       uniform float blend;
+      uniform int hoverId;
       varying vec2 vUv;
       varying vec3 vNormal;
       void main() {
         vec4 baseColor = texture2D(baseTexture, vUv);
         vec4 heatColor = texture2D(heatTexture, vUv);
         vec4 color = mix(baseColor, heatColor, blend);
+        // Highlight hovered country
+        if (hoverId > 0) {
+          vec4 idColor = texture2D(idTexture, vUv);
+          int id = int(idColor.r * 255.0) * 65536 + int(idColor.g * 255.0) * 256 + int(idColor.b * 255.0);
+          if (id == hoverId) {
+            color.rgb = mix(color.rgb, vec3(0.5, 1.0, 1.0), 0.7);
+          }
+        }
         float light = 0.3 + 0.7 * max(0.0, dot(vNormal, vec3(0.5,0.8,0.3)));
         gl_FragColor = vec4(color.rgb * light, 1.0);
       }
     `;
     const uniforms = {
       baseTexture: { value: baseTexture },
-      heatTexture: { value: heatTexture },
-      blend: { value: 0.0 }
+      heatTexture: { value: heatmapTexture },
+      idTexture: { value: idTexture },
+      blend: { value: 0.0 },
+      hoverId: { value: 0 }
     };
     const earthMat = new THREE.ShaderMaterial({
       uniforms,
@@ -390,16 +409,9 @@
     const earthMesh = new THREE.Mesh(geometry, earthMat);
     earthGroup.add(earthMesh);
 
-    // ID mesh for raycasting
-    const idTexture = new THREE.CanvasTexture(idMapCanvas);
-    const idMat = new THREE.MeshBasicMaterial({ map: idTexture, transparent: true, opacity: 0.0, side: THREE.FrontSide });
-    const idMesh = new THREE.Mesh(new THREE.SphereGeometry(50.2, 128, 128), idMat);
-    earthGroup.add(idMesh);
-
     // Atmosphere glow
     const glowGeo = new THREE.SphereGeometry(51, 64, 64);
     const glowMat = new THREE.ShaderMaterial({
-      uniforms: {},
       vertexShader: `varying vec3 vNormal; void main() { vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
       fragmentShader: `varying vec3 vNormal; void main() { float intensity = pow(0.75 - dot(vNormal, vec3(0,0,1)), 2.5); gl_FragColor = vec4(0.13,0.83,0.93,1.0) * intensity; }`,
       blending: THREE.AdditiveBlending,
@@ -419,17 +431,17 @@
     // Stars
     const starsGeo = new THREE.BufferGeometry();
     const starsPos = new Float32Array(2000*3);
-    for (let i=0;i<2000*3;i+=3) { starsPos[i] = (Math.random()-0.5)*1000; starsPos[i+1] = (Math.random()-0.5)*600; starsPos[i+2] = (Math.random()-0.5)*800; }
+    for (let i=0;i<2000*3;i+=3) { starsPos[i]=(Math.random()-0.5)*1000; starsPos[i+1]=(Math.random()-0.5)*600; starsPos[i+2]=(Math.random()-0.5)*800; }
     starsGeo.setAttribute('position', new THREE.BufferAttribute(starsPos,3));
-    scene.add(new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0xffffff, size:0.5})));
+    const stars = new THREE.Points(starsGeo, new THREE.PointsMaterial({color:0xffffff, size:0.5}));
+    scene.add(stars);
 
     // ────────────────────────────────────────
-    // LABELS (CSS2D)
+    // LABELS
     // ────────────────────────────────────────
     const labelsGroup = new THREE.Group();
     earthGroup.add(labelsGroup);
     function createLabels() {
-      // Remove existing labels
       while(labelsGroup.children.length) labelsGroup.remove(labelsGroup.children[0]);
       countries.forEach(c => {
         const div = document.createElement('div');
@@ -444,7 +456,58 @@
     }
 
     // ────────────────────────────────────────
-    // CAMERA FLY-TO (GSAP)
+    // RAYCASTING FOR HOVER & CLICK
+    // ────────────────────────────────────────
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const idMesh = new THREE.Mesh(new THREE.SphereGeometry(50.2, 128, 128), new THREE.MeshBasicMaterial({ map: idTexture, transparent: true, opacity: 0, side: THREE.FrontSide }));
+    earthGroup.add(idMesh); // hidden, for raycasting
+
+    function getCountryIdFromUV(uv) {
+      const x = Math.floor(uv.x * 1024);
+      const y = Math.floor((1 - uv.y) * 512);
+      const pixel = ctx.getImageData(x, y, 1, 1).data;
+      return (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
+    }
+
+    function onMouseMove(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(idMesh);
+      if (intersects.length > 0) {
+        const id = getCountryIdFromUV(intersects[0].uv);
+        if (id !== hoveredCountryId) {
+          hoveredCountryId = id;
+          uniforms.hoverId.value = id;
+          if (id > 0 && id <= countries.length) {
+            document.getElementById('globe-container').style.cursor = 'pointer';
+          } else {
+            document.getElementById('globe-container').style.cursor = 'grab';
+          }
+        }
+      } else {
+        if (hoveredCountryId !== 0) {
+          hoveredCountryId = 0;
+          uniforms.hoverId.value = 0;
+          document.getElementById('globe-container').style.cursor = 'grab';
+        }
+      }
+    }
+
+    function onClick(event) {
+      if (hoveredCountryId > 0 && hoveredCountryId <= countries.length) {
+        const country = countries[hoveredCountryId-1];
+        flyToCountry(country);
+      }
+    }
+
+    renderer.domElement.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('click', onClick);
+
+    // ────────────────────────────────────────
+    // FLY-TO ANIMATION
     // ────────────────────────────────────────
     function flyToCountry(country) {
       controls.autoRotate = false;
@@ -456,32 +519,32 @@
         130 * Math.sin(lat),
         130 * Math.cos(lat) * Math.sin(lon)
       );
-      // GSAP animate camera and controls target
       gsap.to(camera.position, {
         x: targetPos.x, y: targetPos.y, z: targetPos.z,
-        duration: 1.2,
-        ease: 'power2.inOut',
+        duration: 1.2, ease: 'power2.inOut',
         onUpdate: () => controls.update()
       });
       gsap.to(controls.target, {
         x: 0, y: 0, z: 0,
-        duration: 1.2,
-        ease: 'power2.inOut',
-        onUpdate: () => controls.update()
+        duration: 1.2, ease: 'power2.inOut'
       });
       openPanel(country);
     }
 
     // ────────────────────────────────────────
-    // UI & DATA PANEL
+    // DATA PANEL & MINI CHART
     // ────────────────────────────────────────
     const panel = document.getElementById('data-panel');
     const panelFlag = document.getElementById('panel-flag');
     const panelName = document.getElementById('panel-name');
     const statPop = document.getElementById('stat-pop');
-    const statCapital = document.getElementById('stat-capital');
+    const statCap = document.getElementById('stat-cap');
     const statRegion = document.getElementById('stat-region');
     const statArea = document.getElementById('stat-area');
+    const statLang = document.getElementById('stat-lang');
+    const statCurr = document.getElementById('stat-curr');
+    const miniChartCanvas = document.getElementById('mini-chart');
+    const chartCtx = miniChartCanvas.getContext('2d');
 
     function openPanel(country) {
       selectedCountry = country;
@@ -489,9 +552,12 @@
       panelFlag.textContent = data.flag || '';
       panelName.textContent = data.name;
       statPop.textContent = data.population?.toLocaleString() || '—';
-      statCapital.textContent = data.capital || '—';
+      statCap.textContent = data.capital || '—';
       statRegion.textContent = data.region || '—';
       statArea.textContent = data.area ? data.area.toLocaleString() + ' km²' : '—';
+      statLang.textContent = data.languages || '—';
+      statCurr.textContent = data.currencies || '—';
+      drawMiniChart(country);
       panel.classList.add('open');
     }
 
@@ -500,101 +566,32 @@
       selectedCountry = null;
     }
 
-    // ────────────────────────────────────────
-    // RAYCAST CLICK
-    // ────────────────────────────────────────
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    renderer.domElement.addEventListener('click', (e) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObject(idMesh);
-      if (intersects.length > 0) {
-        const uv = intersects[0].uv;
-        const x = Math.floor(uv.x * 512);
-        const y = Math.floor((1 - uv.y) * 256);
-        const pixel = ctx.getImageData(x, y, 1, 1).data;
-        const id = (pixel[0] << 16) | (pixel[1] << 8) | pixel[2];
-        if (id > 0 && id <= countries.length) {
-          const country = countries[id-1];
-          flyToCountry(country);
-        }
+    function drawMiniChart(country) {
+      const w = 300, h = 60;
+      chartCtx.clearRect(0,0,w,h);
+      const data = [];
+      for (let y = 1960; y <= 2024; y+=5) {
+        const growthRate = 0.01 + Math.random()*0.02;
+        const pop = country.population * Math.exp(growthRate * (y - 2024));
+        data.push({ year: y, value: pop });
       }
-    });
-
-    // ────────────────────────────────────────
-    // SCROLL STORYTELLING (GSAP ScrollTrigger)
-    // ────────────────────────────────────────
-    gsap.registerPlugin(ScrollTrigger);
-    const scrollContainer = document.getElementById('scroll-container');
-    // We'll define story steps: each step moves camera to a continent
-    const storySteps = [
-      { lat: 30, lon: -40, zoom: 2.5 }, // North America
-      { lat: -10, lon: -55, zoom: 2.8 }, // South America
-      { lat: 50, lon: 10, zoom: 2.2 },  // Europe
-      { lat: 30, lon: 80, zoom: 2.0 },  // Asia
-      { lat: -25, lon: 135, zoom: 2.6 }, // Australia
-      { lat: 0, lon: 20, zoom: 3.0 }    // Africa
-    ];
-
-    // Create a timeline
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: scrollContainer,
-        start: 'top top',
-        end: 'bottom bottom',
-        scrub: 1,
-        invalidateOnRefresh: true,
-        onUpdate: (self) => {
-          // progress 0-1
-          const progress = self.progress;
-          const step = Math.floor(progress * (storySteps.length-1));
-          const nextStep = Math.min(step + 1, storySteps.length-1);
-          const stepProgress = (progress * (storySteps.length-1)) - step;
-          const s1 = storySteps[step];
-          const s2 = storySteps[nextStep];
-          // interpolate lat/lon and zoom
-          const lat = s1.lat + (s2.lat - s1.lat) * stepProgress;
-          const lon = s1.lon + (s2.lon - s1.lon) * stepProgress;
-          const zoom = s1.zoom + (s2.zoom - s1.zoom) * stepProgress;
-          // Convert to camera position
-          const phi = (90 - lat) * Math.PI/180;
-          const theta = (lon + 180) * Math.PI/180;
-          const dist = 200 / zoom;
-          camera.position.set(
-            dist * Math.sin(phi) * Math.cos(theta),
-            dist * Math.cos(phi),
-            dist * Math.sin(phi) * Math.sin(theta)
-          );
-          controls.target.set(0,0,0);
-          controls.update();
-          if (controls.autoRotate) {
-            controls.autoRotate = false;
-            document.getElementById('btn-auto-rotate').classList.remove('active');
-          }
-        }
-      }
-    });
-
-    // ────────────────────────────────────────
-    // HEATMAP TOGGLE WITH SMOOTH TRANSITION
-    // ────────────────────────────────────────
-    const btnHeatmap = document.getElementById('btn-heatmap');
-    btnHeatmap.addEventListener('click', () => {
-      heatmapEnabled = !heatmapEnabled;
-      btnHeatmap.classList.toggle('active', heatmapEnabled);
-      // Animate blend uniform
-      gsap.to(uniforms.blend, {
-        value: heatmapEnabled ? 1.0 : 0.0,
-        duration: 0.8,
-        ease: 'power2.inOut'
+      const maxVal = Math.max(...data.map(d=>d.value));
+      chartCtx.beginPath();
+      chartCtx.strokeStyle = '#22d3ee';
+      chartCtx.lineWidth = 2;
+      data.forEach((d, i) => {
+        const x = (i / (data.length-1)) * w;
+        const y = h - (d.value / maxVal) * h;
+        if (i===0) chartCtx.moveTo(x,y);
+        else chartCtx.lineTo(x,y);
       });
-    });
+      chartCtx.stroke();
+    }
+
+    document.getElementById('panel-close').addEventListener('click', closePanel);
 
     // ────────────────────────────────────────
-    // SEARCH & OTHER UI
+    // SEARCH
     // ────────────────────────────────────────
     const searchInput = document.getElementById('search-input');
     const searchClear = document.getElementById('search-clear');
@@ -628,18 +625,101 @@
       searchClear.classList.remove('visible');
       suggestions.classList.remove('active');
     });
-    document.getElementById('panel-close').addEventListener('click', closePanel);
+
+    // ────────────────────────────────────────
+    // STORY SCROLL (ScrollTrigger)
+    // ────────────────────────────────────────
+    const storyCard = document.getElementById('story-card');
+    const storySteps = [
+      { lat: 30, lon: -100, text: 'North America' },
+      { lat: -10, lon: -60, text: 'South America' },
+      { lat: 50, lon: 10, text: 'Europe' },
+      { lat: 30, lon: 80, text: 'Asia' },
+      { lat: -25, lon: 135, text: 'Oceania' },
+      { lat: 5, lon: 20, text: 'Africa' }
+    ];
+    // Create a dummy scroll container
+    const scrollContainer = document.createElement('div');
+    scrollContainer.style.cssText = 'position:fixed; inset:0; z-index:10; pointer-events:none;';
+    document.body.appendChild(scrollContainer);
+    const scrollContent = document.createElement('div');
+    scrollContent.style.height = '400vh';
+    scrollContainer.appendChild(scrollContent);
+
+    gsap.timeline({
+      scrollTrigger: {
+        trigger: scrollContainer,
+        start: 'top top',
+        end: 'bottom bottom',
+        scrub: 1,
+        onUpdate: (self) => {
+          const progress = self.progress;
+          const step = Math.floor(progress * (storySteps.length-1));
+          const nextStep = Math.min(step+1, storySteps.length-1);
+          const t = (progress * (storySteps.length-1)) - step;
+          const s1 = storySteps[step];
+          const s2 = storySteps[nextStep];
+          const lat = s1.lat + (s2.lat - s1.lat) * t;
+          const lon = s1.lon + (s2.lon - s1.lon) * t;
+          const phi = (90 - lat) * Math.PI/180;
+          const theta = (lon + 180) * Math.PI/180;
+          const dist = 180;
+          camera.position.set(
+            dist * Math.sin(phi) * Math.cos(theta),
+            dist * Math.cos(phi),
+            dist * Math.sin(phi) * Math.sin(theta)
+          );
+          controls.target.set(0,0,0);
+          controls.update();
+          if (controls.autoRotate) {
+            controls.autoRotate = false;
+            document.getElementById('btn-auto-rotate').classList.remove('active');
+          }
+          // Update story card
+          const currentText = s1.text + (t > 0.5 ? ' → ' + s2.text : '');
+          storyCard.textContent = currentText;
+          storyCard.classList.toggle('visible', true);
+        },
+        onLeave: () => storyCard.classList.remove('visible'),
+        onEnterBack: () => storyCard.classList.add('visible')
+      }
+    });
+
+    // ────────────────────────────────────────
+    // TIME SLIDER
+    // ────────────────────────────────────────
+    const timeSlider = document.getElementById('time-slider');
+    const yearLabel = document.getElementById('year-label');
+    timeSlider.addEventListener('input', () => {
+      currentYear = parseInt(timeSlider.value);
+      yearLabel.textContent = currentYear;
+      // Regenerate heatmap texture for the new year
+      const newHeatTexture = generateHeatTexture(currentYear);
+      uniforms.heatTexture.value = newHeatTexture;
+      heatmapTexture.dispose();
+      heatmapTexture = newHeatTexture;
+      // Update panel chart if a country is selected
+      if (selectedCountry) drawMiniChart(selectedCountry);
+    });
+
+    // ────────────────────────────────────────
+    // CONTROLS
+    // ────────────────────────────────────────
+    document.getElementById('btn-auto-rotate').addEventListener('click', function() {
+      controls.autoRotate = !controls.autoRotate;
+      this.classList.toggle('active', controls.autoRotate);
+    });
+    document.getElementById('btn-heatmap').addEventListener('click', function() {
+      heatmapEnabled = !heatmapEnabled;
+      this.classList.toggle('active', heatmapEnabled);
+      gsap.to(uniforms.blend, { value: heatmapEnabled ? 1.0 : 0.0, duration: 0.8, ease: 'power2.inOut' });
+    });
     document.getElementById('btn-reset').addEventListener('click', () => {
       gsap.to(camera.position, { x:0, y:0, z:200, duration:1, ease:'power2.inOut' });
       gsap.to(controls.target, { x:0, y:0, z:0, duration:1, ease:'power2.inOut' });
       closePanel();
       controls.autoRotate = true;
       document.getElementById('btn-auto-rotate').classList.add('active');
-    });
-    const btnAutoRotate = document.getElementById('btn-auto-rotate');
-    btnAutoRotate.addEventListener('click', () => {
-      controls.autoRotate = !controls.autoRotate;
-      btnAutoRotate.classList.toggle('active', controls.autoRotate);
     });
 
     // ────────────────────────────────────────
@@ -648,20 +728,14 @@
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
+      stars.rotation.y += 0.0001;
       renderer.render(scene, camera);
       labelRenderer.render(scene, camera);
     }
 
+    // ────────────────────────────────────────
     // STARTUP
-    loadCountries().then(() => {
-      buildIdMap();
-      createLabels();
-      // Update heat texture now that we have real data
-      heatTexture = generateHeatTexture();
-      uniforms.heatTexture.value = heatTexture;
-      animate();
-    });
-
+    // ────────────────────────────────────────
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -669,7 +743,18 @@
       labelRenderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    console.log('🌍 Next Level Globe ready – scroll, search, fly');
+    async function init() {
+      await loadCountries();
+      buildIdMap();
+      // Update id texture
+      idTexture.needsUpdate = true;
+      createLabels();
+      heatmapTexture = generateHeatTexture(2024);
+      uniforms.heatTexture.value = heatmapTexture;
+      animate();
+      console.log('🌍 Super Detail Globe ready');
+    }
+    init();
   </script>
 </body>
 </html>
